@@ -12,6 +12,7 @@ format:
 ```{r, message=FALSE}
 library(tidyverse)
 library(table1)
+library(randomForest)
 theme_set(theme_bw())
 
 abalone <- read_csv(
@@ -112,3 +113,72 @@ abalone |>
 ```
 
 Overall, the EDA suggests that both size and weight measurements are useful predictors of `Rings`. There is a consistent positive relationship across male, female, and infant abalones. However, most `Height` values are clustered within a relatively small range, approximately 0.0 to 0.3, with a few outliers. As a result, the fitted line for `Height` may be more affected by extreme observations and should be interpreted more cautiously.
+
+
+```{r}
+abalone$Sex <- as.factor(abalone$Sex)
+
+set.seed(123)
+
+rf_model <- randomForest(
+  Rings ~ .,
+  data = abalone,
+  ntree = 500,
+  importance = TRUE
+)
+
+rf_model
+```
+
+```{r}
+importance(rf_model)
+varImpPlot(rf_model)
+
+```
+
+```{r}
+plot(abalone$Rings, rf_model$predicted,
+     xlab = "Actual Rings",
+     ylab = "Predicted Rings",
+     main = "Random Forest: Actual vs Predicted")
+abline(0, 1, col = "red")
+```
+
+
+
+```{r}
+k <- 10
+
+folds <- sample(rep(1:k, length.out = nrow(abalone)))
+
+rmse_vals <- c()
+mae_vals <- c()
+r2_vals <- c()
+
+for (i in 1:k) {
+  train_data <- abalone[folds != i, ]
+  test_data  <- abalone[folds == i, ]
+  
+  rf_fit <- randomForest(
+    Rings ~ .,
+    data = train_data,
+    ntree = 500,
+    importance = TRUE
+  )
+  
+  preds <- predict(rf_fit, newdata = test_data)
+  
+  rmse_vals[i] <- sqrt(mean((preds - test_data$Rings)^2))
+  mae_vals[i]  <- mean(abs(preds - test_data$Rings))
+  r2_vals[i]   <- cor(preds, test_data$Rings)^2
+}
+
+mean(rmse_vals)
+mean(mae_vals)
+mean(r2_vals)
+```
+
+
+
+
+
