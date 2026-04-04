@@ -1,0 +1,114 @@
+---
+title: 'Exploratory data analysis'
+subtitle: "Group number: G1D5"
+author: "Nam Anh Le"
+format: 
+  html:
+    number-sections: false
+    code-tools: true
+    embed-resources: true
+---
+
+```{r, message=FALSE}
+library(tidyverse)
+library(table1)
+theme_set(theme_bw())
+
+abalone <- read_csv(
+  "abalone/abalone.data", 
+  col_names = c("Sex", "Length", "Diameter", "Height", "Whole_Weight", "Shucked_Weight", "Viscera_Weight", "Shell_Weight", "Rings"
+  )
+)
+
+```
+
+# Dataset
+
+The data has 4177 observations (with no missing attribute values), with the attributes being `Sex`, `Length`, `Diameter`, `Height`, `Whole_Weight`, `Shucked_Weight`, `Viscera_Weight`, `Shell_Weight`, and the dependent variable being `Rings` which is also mentioned to be a way to predict the age of an abalone.
+
+```{r}
+ggplot(abalone, aes(x = Rings)) + geom_histogram(binwidth = 1, boundary = 0.5) + 
+  labs(
+    title = "Distribution of Rings",
+    x = "Number of Rings",
+    y = "Count"
+  )
+```
+
+The distribution of `Rings` is roughly bell-shaped, but it is positively skewed, so it does not appear to follow a perfectly normal distribution. Most abalones are concentrated around 8 to 11 rings, with fewer observations at very low or very high ring counts. There is also a noticeable right tail.
+
+# Data Statistics
+
+```{r}
+
+abalone <- abalone |>
+  mutate(
+    Sex = factor(Sex, levels = c("M", "F", "I"),
+                 labels = c("Male", "Female", "Infant"))
+  )
+
+table1(
+  ~ Length + Diameter + Height + Whole_Weight + Shucked_Weight +
+    Viscera_Weight + Shell_Weight + Rings | Sex,
+  data = abalone,
+  overall = "Total"
+)
+```
+
+# Initial Visualizations
+
+```{r}
+ggplot(abalone, aes(y = Sex, x = Rings)) +
+  geom_boxplot()
+```
+
+The boxplot suggests that infant abalones generally have fewer rings than male and female abalones. There are several high outliers in each group. Since the three groups overlap substantially, `Sex` alone does not appear to be a strong predictor of `Rings`.
+
+```{r}
+
+abalone |>
+  pivot_longer(
+    cols = c(Diameter, Height, Length),
+    names_to = "variable",
+    values_to = "values"
+  ) |>
+  ggplot(aes(x = values, y = Rings)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_grid(Sex ~ variable, scales = "free_x") +
+  labs(
+    title = "Relationships Between Diameter, Height, Length and Rings",
+    x = "Measurement (mm)",
+    y = "Number of Rings"
+  )
+
+
+abalone |>
+  mutate(
+    Sex = factor(Sex, levels = c("Male", "Female", "Infant"))
+  ) |>
+  pivot_longer(
+    cols = c(Whole_Weight, Shucked_Weight, Viscera_Weight, Shell_Weight),
+    names_to = "variable",
+    values_to = "values"
+  ) |>
+  mutate(
+    variable = factor(
+      variable,
+      levels = c("Whole_Weight", "Shucked_Weight", "Viscera_Weight", "Shell_Weight"),
+      labels = c("Whole weight", "Shucked weight", "Viscera weight", "Shell weight")
+    )
+  ) |>
+  ggplot(aes(x = values, y = Rings)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_grid(Sex ~ variable, scales = "free_x") +
+  labs(
+    title = "Relationships Between Weight Variables and Rings",
+    x = "Weight (g)",
+    y = "Number of Rings"
+  )
+
+```
+
+Overall, the EDA suggests that both size and weight measurements are useful predictors of `Rings`. There is a consistent positive relationship across male, female, and infant abalones. However, most `Height` values are clustered within a relatively small range, approximately 0.0 to 0.3, with a few outliers. As a result, the fitted line for `Height` may be more affected by extreme observations and should be interpreted more cautiously.
