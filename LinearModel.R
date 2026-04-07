@@ -35,6 +35,10 @@ lm_log <- lm (log(Rings) ~ Sex + Length + Diameter + Height +
 par (mfrow = c(2,2))
 plot (lm_log)
 
+#Check which to change into predictors
+library(car)
+crPlots(lm_log)
+
 #Transform necessary predictors
 lm_transformed <- lm(log(Rings) ~ Sex + log(Length) + log(Diameter) + Height +
                        WholeWeight + log(ShuckedWeight) + log(VisceraWeight) +
