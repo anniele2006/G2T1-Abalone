@@ -161,7 +161,7 @@ new_obs <- data.frame(
 
 predict(lm_final, new_obs, interval = "prediction", level = 0.90)
 
-# Convert Back the Log..
+# Convert Back the Log.dlkfgjldfkjg
 exp(2.328883)  
 exp(1.994742) 
 exp(2.663024)
