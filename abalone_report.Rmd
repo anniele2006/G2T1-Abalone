@@ -1,0 +1,192 @@
+---
+title: "Predicting Abalone Age Using Non-Destructive Measurements"
+author:
+  - name: "Nam Anh Le"
+    affiliation: "a"
+  - name: "Loi Xun"
+    affiliation: "a"
+  - name: "Jazz Lai"
+    affiliation: "a"
+
+address:
+  - code: "a"
+    address: "SMU - COR2255"
+
+abstract: |
+  This study develops a non-destructive model for predicting abalone age from external physical measurements. Using 4,177 observations, we compared multiple linear regression with random forest. After data cleaning, transformation, model selection, and 10-fold cross-validation, the linear regression model performed better, achieving a cross-validated \(R^2\) of approximately 0.51. These results suggest that a simple and interpretable regression model can provide reasonably accurate age estimates without requiring invasive measurements, making it useful for fisheries management and conservation.
+lead_author_surname: "Le"
+keywords:
+  - abalone
+  - multiple regression
+  - cross-validation
+  - model selection
+fontsize: 9pt
+footer_contents: "Abalone Report"
+bibliography: references.bib
+output: pinp::pinp
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center"
+)
+
+library(tidyverse)
+library(MASS)
+library(leaps)
+library(caret)
+library(knitr)
+```
+
+```{r data-prep, include=FALSE}
+# load and prep data
+abalone <- read.csv("abalone/abalone.data", header = FALSE)
+
+colnames(abalone) <- c(
+  "Sex", "Length", "Diameter", "Height",
+  "WholeWeight", "ShuckedWeight", "VisceraWeight",
+  "ShellWeight", "Rings"
+)
+
+# non-destructive dataset
+alivebalone <- abalone[, !names(abalone) %in%
+  c("ShuckedWeight", "ShellWeight", "VisceraWeight")]
+
+# sex is treated as a categorical predictor
+alivebalone$Sex <- as.factor(alivebalone$Sex)
+
+# remove zero heights
+alivebalone <- alivebalone[alivebalone$Height > 0, ]
+
+# remove two implausible observations identified during checking from LinearModelAlive.R
+alivebalone <- alivebalone[-2051, ]
+alivebalone <- alivebalone[-1417, ]
+
+# Initial model
+lm_alive_full <- lm(
+  Rings ~ Sex + Length + Diameter + Height + WholeWeight,
+  data = alivebalone
+)
+
+# log transformed model
+lm_alive_log <- lm(
+  log(Rings) ~ Sex + Length + Diameter + Height + WholeWeight,
+  data = alivebalone
+)
+
+# dummy variable used in final selected model
+alivebalone$SexI <- as.integer(alivebalone$Sex == "I")
+alivebalone$logRings <- log(alivebalone$Rings)
+
+# final selected model from LinearModelAlive.R
+lm_alive_final <- lm(
+  log(Rings) ~ SexI + Diameter + Height + WholeWeight,
+  data = alivebalone
+)
+
+# 10-fold CV for final linear model
+set.seed(123)
+train_alive_control <- trainControl(method = "cv", number = 10)
+
+cv_alive_final <- train(
+  logRings ~ SexI + Diameter + Height + WholeWeight,
+  data = alivebalone,
+  method = "lm",
+  trControl = train_alive_control
+)
+
+# in-sample R-squared
+lm_summary <- summary(lm_alive_final)
+in_sample_r2 <- lm_summary$r.squared
+
+# cross-validated R-squared
+cv_r2 <- cv_alive_final$results$Rsquared[1]
+
+# Prediction example: create a sample observation to show concrete prediction 
+# n 90% prediction interval
+new_obs <- data.frame(
+  SexI = 0,
+  Diameter = 0.4,
+  Height = 0.15,
+  WholeWeight = 0.8
+)
+
+# prediction on log scale as final model was fit on log(Rings)
+pred_log <- predict(
+  lm_alive_final,
+  newdata = new_obs,
+  interval = "prediction",
+  level = 0.90
+)
+
+# convert predictions back to original rings scale
+pred_rings <- exp(pred_log)
+
+#taken from randomForestModel.R
+rf_cv_r2 <- 0.402
+```
+## Introduction
+
+This study investigates whether abalone age can be predicted accurately using only non-destructive physical measurements. The main objective is to develop a practical model that avoids predictors requiring the abalone to be opened or killed. A second objective is to compare a classical multiple regression approach with a random forest benchmark to assess which method gives better predictive performance on this dataset.
+
+## Data set
+
+The abalone dataset was collected in 1995 and contains 4,177 observations [@nash1994]. The recorded variables are Sex, Length, Diameter, Height, Whole weight, Shucked weight, Viscera weight, Shell weight, and Rings. Rings is commonly used as a proxy for age, since older abalones tend to have a greater number of shell rings. Because this study focuses on non-destructive prediction, the destructive measurements Shucked weight, Viscera weight, and Shell weight were excluded from the main analysis.
+
+## Analysis
+
+Exploratory analysis showed that the physical measurement variables were positively associated with the number of rings. During data cleaning, observations with zero height were removed, and two implausible observations were excluded after diagnostic checking.
+
+We first fitted a multiple linear regression model using only non-destructive predictors: Sex, Length, Diameter, Height, and Whole weight. Diagnostic plots indicated violations of linearity, normality, and constant variance. A Box--Cox analysis suggested a transformation close to a logarithm, so the response was transformed to \(\log(\text{Rings})\). This improved the residual pattern and the Q--Q plot, although some deviations from the assumptions remained.
+
+We then carried out model selection using both stepwise procedures and exhaustive search, selecting the model with the lowest BIC. BIC was used to favour a parsimonious model while still retaining strong predictive performance. The final model was
+\[
+\begin{aligned}
+\log(\text{Rings}) =\;& \beta_0 + \beta_1 \text{SexI} + \beta_2 \text{Diameter} \\
+&+ \beta_3 \text{Height} + \beta_4 \text{WholeWeight} + \varepsilon
+\end{aligned}
+\]
+Model performance was assessed using 10-fold cross-validation with the `caret` package [@kuhn2008]. Because the linear model assumptions were not perfectly satisfied, a random forest model using the same non-destructive predictors was also fitted as a comparison benchmark.
+
+```{r fig-diagnostics, fig.cap="Diagnostic plots for the initial and transformed non-destructive linear regression models. The log transformation of Rings improved the residual pattern and Q--Q plot, although some deviations from model assumptions remained.", fig.width=6.8, fig.height=4.8, out.width='100%'}
+par(mfrow = c(2, 2))
+plot(lm_alive_full, which = 1)
+plot(lm_alive_full, which = 2)
+plot(lm_alive_log, which = 1)
+plot(lm_alive_log, which = 2)
+```
+
+## Results
+
+The selected linear regression model achieved an in-sample \(R^2\) of `r sprintf("%.4f", in_sample_r2)` and a cross-validated \(R^2\) of `r sprintf("%.4f", cv_r2)`, showing little evidence of overfitting. The negligible difference between these two suggests that the model generalises well to unseen data. The final model retained infant status, diameter, height, and whole weight as predictors, indicating that larger abalones tend to have more rings.
+
+The linear model also outperformed the non-destructive random forest benchmark, whose cross-validated \(R^2\) was approximately `r sprintf("%.2f", rf_cv_r2)`. Thus, the simpler regression model was selected as the final model.
+
+For an adult abalone with diameter 0.4mm, height 0.15mm, and whole weight 0.8g, the model predicted approximately `r sprintf("%.2f", pred_rings[1, "fit"])` rings, with a 90\% prediction interval from `r sprintf("%.2f", pred_rings[1, "lwr"])` to `r sprintf("%.2f", pred_rings[1, "upr"])` rings. This interval shows that the model is informative on average, although individual predictions remain uncertain.
+
+```{r tbl-performance, results='asis'}
+perf_table <- data.frame(
+  Model = c("Linear regression", "Random forest"),
+  CV_R2 = c(cv_r2, rf_cv_r2)
+)
+
+kable(perf_table, digits = 3, caption = "Cross-validated model performance.")
+```
+
+## Discussion and conclusion
+
+Overall, the multiple linear regression model provided a reasonably accurate and interpretable non-destructive method for predicting abalone age, and it performed better than the random forest model on this dataset. A likely reason is that the available predictors capture a moderate but fairly smooth relationship with age, which a simpler regression model can represent well. However, some regression assumptions were still not fully satisfied, and the dataset is relatively old and limited on the variables collected then. Future works could improve prediction by incorporating additional non-invasive characteristics, species information, and environmental variables such as temperature, food availability, water acidity, and habitat conditions. Despite these limitations, the results suggest that non-destructive age prediction is feasible and may be useful for conservation applications.
+
+This report was prepared in R Markdown using the `pinp` template [@pinp].
+
+\newpage
+
+# Appendix
+
+## References
+
+::: {#refs}
+:::
