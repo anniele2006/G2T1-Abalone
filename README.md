@@ -15,8 +15,12 @@ This project analyses the Abalone dataset using multiple linear regression and r
 
 ## Report summary
 
-The final selected non-destructive linear regression model used infant status, diameter, height, and whole weight as predictors of log-transformed ring count. Its in-sample \(R^2\) was 0.5097 and its cross-validated \(R^2\) was 0.5096. A non-destructive random forest benchmark achieved a lower cross-validated \(R^2\) of 0.402.
+The final selected non-destructive linear regression model used infant status, diameter, height, and whole weight as predictors of log-transformed ring count. Its in-sample \(R^2\) was 0.5097 and its cross-validated R^2 was 0.5096. A non-destructive random forest benchmark achieved a lower cross-validated R^2 of 0.402.
 
 ## Notes
 
 This repository was created for coursework submission and includes both the report source and supporting analysis scripts.
+
+## GitHub repository
+
+[https://github.com/anniele2006/G2T1-Abalone](https://github.com/anniele2006/G2T1-Abalone)
