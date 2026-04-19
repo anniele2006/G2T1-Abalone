@@ -184,9 +184,5 @@ This report was prepared in R Markdown using the `pinp` template [@pinp].
 
 \newpage
 
-# Appendix
-
-## References
-
 ::: {#refs}
 :::
