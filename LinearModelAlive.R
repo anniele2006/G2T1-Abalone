@@ -44,7 +44,7 @@ library(MASS)
 boxcox(lm_alive_full)
 
 bc_alive <- boxcox(lm_alive_full)
-best_alive_lambda <- bc$x[which.max(bc$y)]
+best_alive_lambda <- bc_alive$x[which.max(bc_alive$y)]
 best_alive_lambda
 
 #As best lambda is -0.06. we use log(rings). Test for assumptions again
@@ -90,6 +90,8 @@ summary(step_alive_forward)
 alivebalone$SexI <- as.integer(alivebalone$Sex == "I")
 alivebalone$SexM <- as.integer(alivebalone$Sex == "M")
 
+install.packages("leaps")
+library (leaps)
 exhaustive_alive <- regsubsets(log(Rings) ~ Sex + Length + Diameter + Height +
                            WholeWeight, 
                          data = alivebalone,
@@ -106,7 +108,7 @@ best_alive_bic   <- which.min(exhaustive_alive_summary$bic)
 cat("Best size by BIC:     ", best_alive_bic, "\n")
 
 # Fit the best model (using BIC as primary criterion)
-best_alive_vars <- names(coef(exhaustive, best_alive_bic))[-1]
+best_alive_vars <- names(coef(exhaustive_alive, best_alive_bic))[-1]
 best_alive_formula <- as.formula(paste("Rings ~", paste(best_alive_vars, collapse = " + ")))
 best_alive_exhaustive_model <- lm(best_alive_formula, data = alivebalone)
 summary_alive_best <- summary(best_alive_exhaustive_model)
@@ -141,7 +143,7 @@ lm_alive_final <- lm(log(Rings) ~ SexI + Diameter + Height +
                  , data = alivebalone)
 
 summary(lm_alive_final)
-
+lm_alive_final
 
 #Set seed for 10-fold cross validation
 set.seed(123)
@@ -163,4 +165,21 @@ cv_alive_final <- train(logRings ~ SexI + Diameter + Height +
                   trControl = train_alive_control)
 
 # View results
-cv_final
+cv_alive_final
+
+
+# Predictions
+new_obs <- data.frame(
+  SexI = 0,                    # not infant (e.g. adult)
+  Diameter = 0.4,
+  Height = 0.15,
+  WholeWeight = 0.8
+)
+
+predict(lm_alive_final, new_obs, interval = "prediction", level = 0.90)
+
+# Convert Back the Log
+exp(2.318144)  
+exp(1.949707) 
+exp(2.68658)
+
