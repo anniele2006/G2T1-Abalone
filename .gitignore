@@ -5,3 +5,12 @@
 .quarto/
 *_files/
 *.html
+*.log
+*.aux
+*.out
+*.tex
+*_cache/
+*_files/
+pinp.cls
+pinp.bib
+jss.bst
